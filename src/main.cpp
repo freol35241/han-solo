@@ -115,15 +115,13 @@ void setup()
 
 
                     // Publish power
-                    String payload = String(power);
-                    mqttClient.publish((MQTT_BASE_TOPIC + String("/power")).c_str(), 0, false, payload.c_str());
+                    mqttClient.publish((MQTT_BASE_TOPIC + String("/power")).c_str(), 0, false, String(power).c_str());
 
                     // Publish incrementer
-                    payload = String(_counter);
-                    mqttClient.publish((MQTT_BASE_TOPIC + String("/counter")).c_str(), 0, false, payload.c_str()); });
+                    mqttClient.publish((MQTT_BASE_TOPIC + String("/counter")).c_str(), 0, false, String(_counter).c_str()); });
 }
 
 void loop()
 {
-  // Nothing here, this sketch is event driven
+  app.tick();
 }
