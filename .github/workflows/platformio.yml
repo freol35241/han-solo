@@ -32,4 +32,4 @@ jobs:
         python -m pip install --upgrade pip
         pip install --upgrade platformio
     - name: Run PlatformIO
-      run: pio run -environment d1_mini_lite
+      run: pio run --environment d1_mini_lite
