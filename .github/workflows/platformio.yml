@@ -13,6 +13,31 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+    - uses: 1arp/create-a-file-action@0.2
+      with:
+        path: 'include'
+        file: 'config.h'
+        content: |
+          #ifndef CONFIG_H
+          #define CONFIG_H
+
+          #define WIFI_SSID "DUMMY"
+          #define WIFI_PW "DUMMY"
+
+          #define MQTT_HOST IPAddress(10, 10, 10, 10)
+          #define MQTT_PORT 10
+          #define MQTT_USER "DUMMY"
+          #define MQTT_PW "DUMMY"
+
+          #define MQTT_BASE_TOPIC "DUMMY/DUMMY"
+
+          #define INTERRUPT_PIN_NUMBER 10
+
+          #define DEBOUNCE_TIME 200 // milliseconds
+
+          #define BLINKS_PER_KWH 1000
+
+          #endif
     - name: Cache pip
       uses: actions/cache@v2
       with:
