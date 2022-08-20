@@ -2,6 +2,7 @@
 #include <Ticker.h>
 #include <AsyncMqttClient.h>
 #include <ReactESP.h>
+#include <DebugLog.h>
 
 #include "config.h"
 
@@ -16,39 +17,39 @@ Ticker wifiReconnectTimer;
 
 void connectToWifi()
 {
-  Serial.println("Connecting to Wi-Fi...");
+  LOG_INFO("Connecting to Wi-Fi...");
   WiFi.begin(WIFI_SSID, WIFI_PW);
 }
 
 void connectToMqtt()
 {
-  Serial.println("Connecting to MQTT...");
+  LOG_INFO("Connecting to MQTT...");
   mqttClient.connect();
 }
 
 void onWifiConnect(const WiFiEventStationModeGotIP &event)
 {
-  Serial.println("Connected to Wi-Fi.");
+  LOG_INFO("Connected to Wi-Fi.");
   connectToMqtt();
 }
 
 void onWifiDisconnect(const WiFiEventStationModeDisconnected &event)
 {
-  Serial.println("Disconnected from Wi-Fi.");
+  LOG_INFO("Disconnected from Wi-Fi.");
   mqttReconnectTimer.detach(); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
   wifiReconnectTimer.once(2, connectToWifi);
 }
 
 void onMqttConnect(bool sessionPresent)
 {
-  Serial.println("Connected to MQTT.");
-  Serial.print("Session present: ");
-  Serial.println(sessionPresent);
+  LOG_INFO("Connected to MQTT.");
+  LOG_DEBUG("Session present: ");
+  LOG_DEBUG(sessionPresent);
 }
 
 void onMqttDisconnect(AsyncMqttClientDisconnectReason reason)
 {
-  Serial.println("Disconnected from MQTT.");
+  LOG_INFO("Disconnected from MQTT.");
 
   if (WiFi.isConnected())
   {
@@ -58,9 +59,9 @@ void onMqttDisconnect(AsyncMqttClientDisconnectReason reason)
 
 void onMqttPublish(uint16_t packetId)
 {
-  Serial.println("Publish acknowledged.");
-  Serial.print("  packetId: ");
-  Serial.println(packetId);
+  LOG_DEBUG("Publish acknowledged.");
+  LOG_DEBUG("  packetId: ");
+  LOG_DEBUG(packetId);
 }
 
 void setup()
@@ -95,10 +96,11 @@ void setup()
 
                     auto now = millis();
 
-                    float dt = now - _previous;
+                    auto dt = now - _previous;
 
                     if (_previous == 0L)
                     {
+                      LOG_DEBUG("First falling edge detected, next one will start generating data.");
                       _previous = now;
                       return;
                     }
@@ -106,12 +108,15 @@ void setup()
 
                     if (dt < DEBOUNCE_TIME)
                     {
+                      LOG_DEBUG("Detection debounced...");
                       return;
                     }
 
-                    // We are ok, lets start calculating
                     _counter++;
-                    float power = (1000 / BLINKS_PER_KWH) / ((dt / 1000) / 3600);
+                    LOG_INFO("Falling edge (", _counter, ") detected!");
+
+                    float power = (1000 / BLINKS_PER_KWH) / (float)((dt / 1000) / 3600);
+                    LOG_INFO("Power: ", power, " W");
 
 
                     // Publish power
