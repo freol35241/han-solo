@@ -2,7 +2,9 @@
 #include <Ticker.h>
 #include <AsyncMqttClient.h>
 #include <ReactESP.h>
+#include <ArduinoJson.h>
 
+#include "HAN.h"
 #include "config.h"
 
 reactesp::ReactESP app;
@@ -74,57 +76,48 @@ void setup()
   // Connect to wifi (and subsequently mqtt)
   connectToWifi();
 
-  Serial.println("Setting up pin config and attaching callback");
-  pinMode(INTERRUPT_PIN_NUMBER, INPUT_PULLUP);
-  app.onInterrupt(INTERRUPT_PIN_NUMBER, FALLING, []()
+  Serial.println("Setting up serial callback");
+  app.onAvailable(Serial, []()
                   {
-                    static unsigned long _previous = 0L;
-                    static unsigned long _counter = 0L;
+                    HAN::Telegram telegram = HAN::receive_telegram(Serial);
 
-                    auto now = millis();
-
-                    if (_previous == 0L)
+                    if (!telegram.crc)
                     {
-                      Serial.println("First falling edge detected, next one will start generating data.");
-                      _previous = now;
+                      Serial.println("Receiving/parsing from serial connection failed");
                       return;
                     }
 
-                    auto dt = now - _previous;
-                    _previous = now;
+                    // Serialize
+                    StaticJsonDocument<512> doc;
+                    doc["FLAG_ID"] = telegram.FLAG_ID;
+                    doc["id"] = telegram.id;
+                    doc["timestamp"] = telegram.timestamp;
 
-                    Serial.print("Delta (ms): ");
-                    Serial.println(dt);
-
-                    if (dt < DEBOUNCE_TIME)
-                    {
-                      Serial.println("Detection debounced...");
-                      return;
+                    for (auto& [name, payload]: telegram.payloads){
+                      doc[name]["value"] = payload.value;
+                      doc[name]["unit"] = payload.unit;
                     }
 
-                    _counter++;
-                    Serial.print("Falling edge (");
-                    Serial.print(_counter);
-                    Serial.println(") detected!");
+                    String output;
+                    output.reserve(512);
+                    serializeJson(doc, output);
 
-                    float power = (1000 / BLINKS_PER_KWH) / (((float)dt / 1000) / 3600);
-                    Serial.print("Power: ");
-                    Serial.print(power);
-                    Serial.println(" W");
-
+                    // Publish to mqtt
                     if (mqttClient.connected())
                     {
                       Serial.println("Publishing to MQTT broker");
-                      // Publish power
-                      mqttClient.publish((MQTT_BASE_TOPIC + String("/power")).c_str(), 0, false, String(power).c_str());
 
-                      // Publish incrementer
-                      mqttClient.publish((MQTT_BASE_TOPIC + String("/counter")).c_str(), 0, false, String(_counter).c_str());
-                    } else {
+                      mqttClient.publish(String(MQTT_BASE_TOPIC).c_str(), 0, false, output.c_str());
+                    }
+                    else
+                    {
                       Serial.println("MQTT not connected, skipping publishing...");
-                    } });
+                    } }
+
+  );
 }
 
 void loop()
 {
+  app.tick();
 }
