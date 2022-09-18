@@ -1,9 +1,12 @@
+#include "config.h"
+
 #include <ESP8266WiFi.h>
 #include <Ticker.h>
 #include <AsyncMqttClient.h>
 #include <ReactESP.h>
+#include <ArduinoJson.h>
 
-#include "config.h"
+#include "HAN.h"
 
 reactesp::ReactESP app;
 
@@ -56,10 +59,6 @@ void onMqttDisconnect(AsyncMqttClientDisconnectReason reason)
 
 void setup()
 {
-  // Serial output
-  Serial.begin(115200);
-  Serial.println();
-  Serial.println();
 
   // Attach wifi handlers
   wifiConnectHandler = WiFi.onStationModeGotIP(onWifiConnect);
@@ -71,60 +70,54 @@ void setup()
   mqttClient.setServer(MQTT_HOST, MQTT_PORT);
   mqttClient.setCredentials(MQTT_USER, MQTT_PW);
 
-  // Connect to wifi (and subsequently mqtt)
-  connectToWifi();
+  // Configure Serial
+  Serial.begin(115200);
+  U0C0 |= BIT(UCRXI);          // Inverse RX
+  Serial.setRxBufferSize(512); // Make sure buffer is large enough for us to have time for the processing
 
-  Serial.println("Setting up pin config and attaching callback");
-  pinMode(INTERRUPT_PIN_NUMBER, INPUT_PULLUP);
-  app.onInterrupt(INTERRUPT_PIN_NUMBER, FALLING, []()
+  Serial.println("Setting up serial callback");
+  app.onAvailable(Serial, []()
                   {
-                    static unsigned long _previous = 0L;
-                    static unsigned long _counter = 0L;
+                    Serial.println("Data available on Serial");
 
-                    auto now = millis();
+                    HAN::Telegram telegram = HAN::receive_telegram(Serial);
 
-                    if (_previous == 0L)
-                    {
-                      Serial.println("First falling edge detected, next one will start generating data.");
-                      _previous = now;
-                      return;
+                    // Serialize
+                    DynamicJsonDocument doc(4096);
+                    doc["FLAG_ID"] = telegram.FLAG_ID;
+                    doc["id"] = telegram.id;
+                    doc["timestamp"] = telegram.timestamp;
+                    doc["crc"] = telegram.crc;
+
+                    for (auto& [name, payload]: telegram.payloads){
+                      doc[name]["value"] = payload.value;
+                      doc[name]["unit"] = payload.unit;
                     }
 
-                    auto dt = now - _previous;
-                    _previous = now;
+                    String output;
+                    serializeJson(doc, output);
+                    Serial.println("Serialized telegram:");
+                    Serial.println(output);
 
-                    Serial.print("Delta (ms): ");
-                    Serial.println(dt);
-
-                    if (dt < DEBOUNCE_TIME)
-                    {
-                      Serial.println("Detection debounced...");
-                      return;
-                    }
-
-                    _counter++;
-                    Serial.print("Falling edge (");
-                    Serial.print(_counter);
-                    Serial.println(") detected!");
-
-                    float power = (1000 / BLINKS_PER_KWH) / (((float)dt / 1000) / 3600);
-                    Serial.print("Power: ");
-                    Serial.print(power);
-                    Serial.println(" W");
-
+                    // Publish to mqtt
                     if (mqttClient.connected())
                     {
                       Serial.println("Publishing to MQTT broker");
-                      // Publish power
-                      mqttClient.publish((MQTT_BASE_TOPIC + String("/power")).c_str(), 0, false, String(power).c_str());
 
-                      // Publish incrementer
-                      mqttClient.publish((MQTT_BASE_TOPIC + String("/counter")).c_str(), 0, false, String(_counter).c_str());
-                    } else {
+                      mqttClient.publish(String(MQTT_BASE_TOPIC).c_str(), 0, false, output.c_str());
+                    }
+                    else
+                    {
                       Serial.println("MQTT not connected, skipping publishing...");
-                    } });
+                    } }
+
+  );
+
+  // Connect to wifi (and subsequently mqtt)
+  connectToWifi();
 }
 
 void loop()
 {
+  app.tick();
 }

@@ -31,12 +31,6 @@ jobs:
 
           #define MQTT_BASE_TOPIC "DUMMY/DUMMY"
 
-          #define INTERRUPT_PIN_NUMBER 10
-
-          #define DEBOUNCE_TIME 200 // milliseconds
-
-          #define BLINKS_PER_KWH 1000
-
           #endif
     - name: Cache pip
       uses: actions/cache@v2
