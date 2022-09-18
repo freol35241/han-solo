@@ -1,5 +1,5 @@
-# vp52-electricitymeter
-Interfacing software for swedish electricity meters having a P1 (HAN) port.
+# HAN Solo
+My own take on interfacing swedish electricity meters having a HAN (P1) port.
 
 This code reads the serial data outputted on the P1 port and posts it as a JSON struct on a single (configurable) MQTT topic.
 
