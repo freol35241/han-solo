@@ -17,11 +17,5 @@ More specifically, this project requires a header file named `config.h` to be pl
 
 #define MQTT_BASE_TOPIC "BASE/TOPIC/FOR/PUBLISHING"
 
-#define INTERRUPT_PIN_NUMBER X
-
-#define DEBOUNCE_TIME XXX // milliseconds
-
-#define BLINKS_PER_KWH XXXX
-
 #endif
 ```

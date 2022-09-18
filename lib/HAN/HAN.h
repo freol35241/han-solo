@@ -61,16 +61,34 @@ namespace HAN
         part.reserve(60);
 
         CRC16 crc;
+        crc.setPolynome(CRC16_IBM);
 
         while (serial.available())
         {
             part = serial.readStringUntil('\n');
             part += '\n'; // Keep newline for CRC calcs
 
+            Serial.print(part);
+
             if (part.startsWith("!"))
             {
+                Serial.println("Found end of telegram!");
+
                 crc.add('!');
-                telegram.crc = crc.getCRC() == parse_crc(part);
+
+                auto crc_parsed = parse_crc(part);
+                auto crc_calculated = crc.getCRC();
+
+                telegram.crc = crc_calculated == crc_parsed;
+
+                if (!telegram.crc)
+                {
+                    Serial.println("CRC check failed:");
+                    Serial.print("  Parsed: ");
+                    Serial.println(crc_parsed);
+                    Serial.print("  Calculated: ");
+                    Serial.println(crc_calculated);
+                }
 
                 return telegram;
             }
@@ -84,12 +102,14 @@ namespace HAN
             // Parse
             if (part.startsWith("/"))
             {
+                Serial.println("Found start of telegram!");
+
                 telegram.FLAG_ID = part.substring(1, 4);
                 telegram.id = part.substring(5);
             }
             else if (!part.isEmpty())
             {
-                String obis_code = part.substring(0, 10);
+                String obis_code = part.substring(0, part.indexOf('('));
 
                 if (OBIS_CODES.find(obis_code) != OBIS_CODES.end())
                 {
@@ -101,15 +121,24 @@ namespace HAN
                         (float)atof(payload.substring(0, idx_asterisk).c_str()),
                         payload.substring(idx_asterisk + 1)};
                 }
-                else if (obis_code == "0-0.1.0.0")
+                else if (obis_code == "0-0:1.0.0")
                 {
                     String payload = part.substring(part.indexOf('(') + 1, part.indexOf(')'));
                     telegram.timestamp = payload;
                 }
+                else
+                {
+                    Serial.print("Dont know how to handle: ");
+                    Serial.println(part);
+                }
             }
 
-            // Allow some slack to next
-            delay(5);
+            // Allow some slack to next if, even if its unlikely(?), we processed faster than the baudrate
+            auto count = 10;
+            while (count-- && !serial.available())
+            {
+                delay(1);
+            }
         }
 
         return telegram;

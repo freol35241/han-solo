@@ -1,3 +1,5 @@
+#include "config.h"
+
 #include <ESP8266WiFi.h>
 #include <Ticker.h>
 #include <AsyncMqttClient.h>
@@ -5,7 +7,6 @@
 #include <ArduinoJson.h>
 
 #include "HAN.h"
-#include "config.h"
 
 reactesp::ReactESP app;
 
@@ -58,10 +59,6 @@ void onMqttDisconnect(AsyncMqttClientDisconnectReason reason)
 
 void setup()
 {
-  // Serial output
-  Serial.begin(115200);
-  Serial.println();
-  Serial.println();
 
   // Attach wifi handlers
   wifiConnectHandler = WiFi.onStationModeGotIP(onWifiConnect);
@@ -73,25 +70,24 @@ void setup()
   mqttClient.setServer(MQTT_HOST, MQTT_PORT);
   mqttClient.setCredentials(MQTT_USER, MQTT_PW);
 
-  // Connect to wifi (and subsequently mqtt)
-  connectToWifi();
+  // Configure Serial
+  Serial.begin(115200);
+  U0C0 |= BIT(UCRXI);          // Inverse RX
+  Serial.setRxBufferSize(512); // Make sure buffer is large enough for us to have time for the processing
 
   Serial.println("Setting up serial callback");
   app.onAvailable(Serial, []()
                   {
+                    Serial.println("Data available on Serial");
+
                     HAN::Telegram telegram = HAN::receive_telegram(Serial);
 
-                    if (!telegram.crc)
-                    {
-                      Serial.println("Receiving/parsing from serial connection failed");
-                      return;
-                    }
-
                     // Serialize
-                    StaticJsonDocument<512> doc;
+                    DynamicJsonDocument doc(4096);
                     doc["FLAG_ID"] = telegram.FLAG_ID;
                     doc["id"] = telegram.id;
                     doc["timestamp"] = telegram.timestamp;
+                    doc["crc"] = telegram.crc;
 
                     for (auto& [name, payload]: telegram.payloads){
                       doc[name]["value"] = payload.value;
@@ -99,8 +95,9 @@ void setup()
                     }
 
                     String output;
-                    output.reserve(512);
                     serializeJson(doc, output);
+                    Serial.println("Serialized telegram:");
+                    Serial.println(output);
 
                     // Publish to mqtt
                     if (mqttClient.connected())
@@ -115,6 +112,9 @@ void setup()
                     } }
 
   );
+
+  // Connect to wifi (and subsequently mqtt)
+  connectToWifi();
 }
 
 void loop()
