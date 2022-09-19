@@ -60,8 +60,7 @@ namespace HAN
         String part;
         part.reserve(60);
 
-        CRC16 crc;
-        crc.setPolynome(CRC16_IBM);
+        CRC16 crc(CRC16_IBM, 0, 0, true, true);
 
         while (serial.available())
         {
@@ -143,5 +142,4 @@ namespace HAN
 
         return telegram;
     };
-
 }
