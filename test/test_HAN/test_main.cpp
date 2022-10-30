@@ -1,8 +1,10 @@
 #define DOCTEST_CONFIG_IMPLEMENT // REQUIRED: Enable custom main()
 #include <doctest.h>
+#include "HAN.h"
 
-// TEST_CASE ...
-// TEST_SUITE ...
+TEST_CASE("libHAN tests ...")
+{
+}
 
 int main(int argc, char **argv)
 {
