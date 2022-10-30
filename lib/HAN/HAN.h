@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <map>
 #include <CRC16.h>
+#include <DebugLog.h>
 
 namespace HAN
 {
@@ -67,11 +68,11 @@ namespace HAN
             part = serial.readStringUntil('\n');
             part += '\n'; // Keep newline for CRC calcs
 
-            Serial.print(part);
+            LOG_DEBUG("Read from serial:", part);
 
             if (part.startsWith("!"))
             {
-                Serial.println("Found end of telegram!");
+                LOG_DEBUG("Found end of telegram!");
 
                 crc.add('!');
 
@@ -82,11 +83,9 @@ namespace HAN
 
                 if (!telegram.crc)
                 {
-                    Serial.println("CRC check failed:");
-                    Serial.print("  Parsed: ");
-                    Serial.println(crc_parsed);
-                    Serial.print("  Calculated: ");
-                    Serial.println(crc_calculated);
+                    LOG_WARN("CRC check failed:");
+                    LOG_WARN("  Parsed:", crc_parsed);
+                    LOG_WARN("  Calculated:", crc_calculated);
                 }
 
                 return telegram;
@@ -101,7 +100,7 @@ namespace HAN
             // Parse
             if (part.startsWith("/"))
             {
-                Serial.println("Found start of telegram!");
+                LOG_DEBUG("Found start of telegram!");
 
                 telegram.FLAG_ID = part.substring(1, 4);
                 telegram.id = part.substring(5);
@@ -127,8 +126,7 @@ namespace HAN
                 }
                 else
                 {
-                    Serial.print("Dont know how to handle: ");
-                    Serial.println(part);
+                    LOG_DEBUG("Dont know how to handle:", part);
                 }
             }
 
