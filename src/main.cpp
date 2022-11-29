@@ -76,6 +76,9 @@ void setup()
   U0C0 |= BIT(UCRXI);          // Inverse RX
   Serial.setRxBufferSize(512); // Make sure buffer is large enough for us to have time for the processing
 
+  // Forcing restart of microprocessor every day
+  app.onDelay(24 * 3600 * 1000, ESP.restart);
+
   LOG_INFO("Setting up serial callback");
   app.onAvailable(Serial, []()
                   {
