@@ -12,40 +12,41 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
-    - uses: 1arp/create-a-file-action@0.2
-      with:
-        path: 'include'
-        file: 'config.h'
-        content: |
-          #ifndef CONFIG_H
-          #define CONFIG_H
+    - uses: actions/checkout@v4
+    - name: Dummy config.h
+      run: |
+        cat > include/config.h <<'EOF'
+        #ifndef CONFIG_H
+        #define CONFIG_H
 
-          #define WIFI_SSID "DUMMY"
-          #define WIFI_PW "DUMMY"
+        #define WIFI_SSID "DUMMY"
+        #define WIFI_PW "DUMMY"
 
-          #define MQTT_HOST IPAddress(10, 10, 10, 10)
-          #define MQTT_PORT 10
-          #define MQTT_USER "DUMMY"
-          #define MQTT_PW "DUMMY"
+        #define MQTT_HOST IPAddress(10, 10, 10, 10)
+        #define MQTT_PORT 10
+        #define MQTT_USER "DUMMY"
+        #define MQTT_PW "DUMMY"
 
-          #define MQTT_BASE_TOPIC "DUMMY/DUMMY"
+        #define MQTT_BASE_TOPIC "DUMMY/DUMMY"
 
-          #endif
+        #endif
+        EOF
     - name: Cache pip
-      uses: actions/cache@v2
+      uses: actions/cache@v4
       with:
         path: ~/.cache/pip
         key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
         restore-keys: |
           ${{ runner.os }}-pip-
     - name: Cache PlatformIO
-      uses: actions/cache@v2
+      uses: actions/cache@v4
       with:
         path: ~/.platformio
         key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
     - name: Set up Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
     - name: Install PlatformIO
       run: |
         python -m pip install --upgrade pip
